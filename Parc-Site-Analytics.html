@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Parc — Site Analytics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  :root {
+    --ink: #1C2321;
+    --paper: #F6F3EA;
+    --paper-raised: #FFFFFF;
+    --accent-gold: #D98A2B;
+    --accent-red: #B23B3B;
+    --muted: #6B7268;
+    --line: #D8D3C5;
+    --shadow: 0 1px 0 rgba(28,35,33,0.06);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink: #F0EDE4;
+      --paper: #14181A;
+      --paper-raised: #1C2122;
+      --accent-gold: #E8A23D;
+      --accent-red: #D9615F;
+      --muted: #9AA39A;
+      --line: #313A38;
+      --shadow: 0 1px 0 rgba(0,0,0,0.4);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ink: #F0EDE4;
+    --paper: #14181A;
+    --paper-raised: #1C2122;
+    --accent-gold: #E8A23D;
+    --accent-red: #D9615F;
+    --muted: #9AA39A;
+    --line: #313A38;
+    --shadow: 0 1px 0 rgba(0,0,0,0.4);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--accent-gold); color: #1C2321; }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 48px 28px 80px;
+  }
+
+  /* ---------- Header / hero ---------- */
+  header.top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 24px;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 28px;
+    margin-bottom: 40px;
+    flex-wrap: wrap;
+  }
+  .wordmark {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: clamp(2.4rem, 5vw, 3.4rem);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1;
+    margin: 0;
+  }
+  .wordmark em {
+    font-style: italic;
+    font-weight: 500;
+    color: var(--accent-gold);
+  }
+  .tagline {
+    color: var(--muted);
+    font-size: 0.95rem;
+    max-width: 30ch;
+    margin: 10px 0 0;
+    line-height: 1.5;
+  }
+  .meta-stamp {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--muted);
+    text-align: right;
+    line-height: 1.6;
+  }
+
+  /* ---------- Upload dropzone ---------- */
+  .dropzone {
+    border: 1.5px dashed var(--line);
+    border-radius: 4px;
+    padding: 36px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+    margin-bottom: 44px;
+    background: var(--paper-raised);
+  }
+  .dropzone:hover, .dropzone.drag {
+    border-color: var(--accent-gold);
+    background: color-mix(in srgb, var(--accent-gold) 7%, var(--paper-raised));
+  }
+  .dropzone input { display: none; }
+  .dropzone .dz-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0 0 6px;
+  }
+  .dropzone .dz-sub {
+    color: var(--muted);
+    font-size: 0.88rem;
+    margin: 0;
+  }
+  .dropzone .dz-sub code {
+    font-family: 'IBM Plex Mono', monospace;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 0.82rem;
+  }
+  .file-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8rem;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 5px 12px 5px 10px;
+  }
+  .file-pill button {
+    border: none; background: none; color: var(--accent-red);
+    cursor: pointer; font-size: 0.95rem; line-height: 1; padding: 0;
+    font-family: inherit;
+  }
+
+  .error-note {
+    border: 1px solid var(--accent-red);
+    color: var(--accent-red);
+    background: color-mix(in srgb, var(--accent-red) 8%, var(--paper-raised));
+    border-radius: 4px;
+    padding: 14px 16px;
+    font-size: 0.88rem;
+    margin-bottom: 32px;
+    display: none;
+  }
+
+  #dashboard { display: none; }
+
+  /* ---------- Bento metrics ---------- */
+  .bento {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 14px;
+    margin-bottom: 48px;
+  }
+  .metric {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 22px 20px;
+    position: relative;
+  }
+  .metric .label {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin: 0 0 10px;
+    line-height: 1.35;
+  }
+  .metric .value {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    line-height: 1.05;
+    margin: 0;
+  }
+  .metric .sub {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.74rem;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+
+  /* hero ticket-stub metric: total visits */
+  .metric.hero {
+    grid-column: span 3;
+    grid-row: span 2;
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .metric.hero .label { color: color-mix(in srgb, var(--paper) 65%, transparent); }
+  .metric.hero .value { font-size: clamp(2.6rem, 6vw, 3.6rem); color: var(--paper); }
+  .metric.hero .sub { color: var(--accent-gold); }
+  .metric.hero .stub-divider {
+    border-top: 1px dashed color-mix(in srgb, var(--paper) 35%, transparent);
+    margin: 16px 0;
+    position: relative;
+  }
+  .metric.hero .stub-divider::before,
+  .metric.hero .stub-divider::after {
+    content: '';
+    position: absolute;
+    top: -7px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--paper);
+  }
+  .metric.hero .stub-divider::before { left: -34px; }
+  .metric.hero .stub-divider::after { right: -34px; }
+  .metric.hero .stub-row {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.76rem;
+    color: color-mix(in srgb, var(--paper) 70%, transparent);
+  }
+
+  .metric.wide { grid-column: span 3; }
+  .metric.third { grid-column: span 2; }
+  .metric .value.mid { font-size: 1.7rem; }
+
+  @media (max-width: 760px) {
+    .bento { grid-template-columns: repeat(2, 1fr); }
+    .metric.hero { grid-column: span 2; grid-row: auto; }
+    .metric.wide { grid-column: span 2; }
+    .metric.third { grid-column: span 2; }
+  }
+
+  /* ---------- Tables ---------- */
+  section.panel { margin-bottom: 44px; }
+  .panel h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+  .panel .panel-sub {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin: 0 0 16px;
+  }
+  .table-scroll {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.86rem;
+    min-width: 560px;
+  }
+  thead th {
+    text-align: left;
+    font-weight: 500;
+    color: var(--muted);
+    font-size: 0.76rem;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+    background: var(--paper-raised);
+    position: sticky; top: 0;
+  }
+  thead th.sorted { color: var(--ink); }
+  thead th .arrow { font-size: 0.7em; margin-left: 3px; color: var(--accent-gold); }
+  tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.82rem;
+    white-space: nowrap;
+  }
+  tbody td.name-cell {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.86rem;
+    white-space: normal;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: color-mix(in srgb, var(--accent-gold) 6%, transparent); }
+  .pill {
+    display: inline-block;
+    font-size: 0.72rem;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    color: var(--muted);
+    margin-left: 7px;
+  }
+  .pill.flag { color: var(--accent-red); border-color: var(--accent-red); }
+  .pill.best { color: var(--accent-gold); border-color: var(--accent-gold); }
+
+  footer.note {
+    color: var(--muted);
+    font-size: 0.78rem;
+    text-align: center;
+    margin-top: 56px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <h1 class="wordmark">Parc <em>Analytics</em></h1>
+      <p class="tagline">Drop in a weekly export to see how the site is performing, page by page and source by source.</p>
+    </div>
+    <div class="meta-stamp" id="stamp">no file loaded</div>
+  </header>
+
+  <label class="dropzone" id="dropzone" for="file-input">
+    <input type="file" id="file-input" accept=".csv">
+    <p class="dz-title">Drop a CSV here, or click to choose one</p>
+    <p class="dz-sub">Expects columns <code>page_name, section, date, visits, unique_visitors, bounce_rate, avg_time_on_page_seconds, conversion_events, traffic_source</code></p>
+    <div class="file-pill" id="filePill" style="display:none;">
+      <span id="fileName"></span>
+      <button id="clearFile" type="button" title="Remove file">×</button>
+    </div>
+  </label>
+
+  <div class="error-note" id="errorNote"></div>
+
+  <div id="dashboard">
+
+    <div class="bento">
+      <div class="metric hero">
+        <div>
+          <p class="label">Total site visits</p>
+          <p class="value" id="m-total-visits">—</p>
+        </div>
+        <div class="stub-divider"></div>
+        <div class="stub-row">
+          <span id="m-date-range">—</span>
+          <span id="m-row-count">—</span>
+        </div>
+      </div>
+
+      <div class="metric wide">
+        <p class="label">Overall conversion rate</p>
+        <p class="value mid" id="m-conv-rate">—</p>
+        <p class="sub" id="m-conv-sub">—</p>
+      </div>
+      <div class="metric wide">
+        <p class="label">Average time on site</p>
+        <p class="value mid" id="m-avg-time">—</p>
+        <p class="sub">visit-weighted across all pages</p>
+      </div>
+
+      <div class="metric third">
+        <p class="label">Most-visited page</p>
+        <p class="value mid" id="m-top-page">—</p>
+        <p class="sub" id="m-top-page-sub">—</p>
+      </div>
+      <div class="metric third">
+        <p class="label">Highest bounce rate</p>
+        <p class="value mid" id="m-bounce-page">—</p>
+        <p class="sub" id="m-bounce-page-sub">—</p>
+      </div>
+      <div class="metric third">
+        <p class="label">Best traffic source</p>
+        <p class="value mid" id="m-best-source">—</p>
+        <p class="sub" id="m-best-source-sub">—</p>
+      </div>
+    </div>
+
+    <section class="panel">
+      <h2>Pages</h2>
+      <p class="panel-sub">Totals across all dates and sources in the file. Click a column to sort.</p>
+      <div class="table-scroll">
+        <table id="pages-table">
+          <thead>
+            <tr>
+              <th data-key="page_name" data-type="str">Page</th>
+              <th data-key="visits" data-type="num">Visits</th>
+              <th data-key="unique_visitors" data-type="num">Unique visitors</th>
+              <th data-key="bounce_rate" data-type="num">Bounce rate</th>
+              <th data-key="avg_time" data-type="num">Avg. time</th>
+              <th data-key="conv_rate" data-type="num">Conversion rate</th>
+            </tr>
+          </thead>
+          <tbody id="pages-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Traffic sources</h2>
+      <p class="panel-sub">Totals by acquisition channel.</p>
+      <div class="table-scroll">
+        <table id="sources-table">
+          <thead>
+            <tr>
+              <th data-key="traffic_source" data-type="str">Source</th>
+              <th data-key="visits" data-type="num">Visits</th>
+              <th data-key="share" data-type="num">Share of visits</th>
+              <th data-key="bounce_rate" data-type="num">Bounce rate</th>
+              <th data-key="conv_rate" data-type="num">Conversion rate</th>
+            </tr>
+          </thead>
+          <tbody id="sources-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </div>
+
+  <footer class="note">Figures recalculate entirely in your browser — nothing is uploaded anywhere.</footer>
+</div>
+
+<script>
+(function () {
+  const REQUIRED_COLUMNS = ['page_name','section','date','visits','unique_visitors','bounce_rate','avg_time_on_page_seconds','conversion_events','traffic_source'];
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('file-input');
+  const filePill = document.getElementById('filePill');
+  const fileNameEl = document.getElementById('fileName');
+  const clearBtn = document.getElementById('clearFile');
+  const errorNote = document.getElementById('errorNote');
+  const dashboard = document.getElementById('dashboard');
+  const stamp = document.getElementById('stamp');
+
+  let pagesSort = { key: 'visits', dir: -1 };
+  let sourcesSort = { key: 'visits', dir: -1 };
+  let lastPagesRows = [];
+  let lastSourcesRows = [];
+
+  function showError(msg) {
+    errorNote.textContent = msg;
+    errorNote.style.display = 'block';
+    dashboard.style.display = 'none';
+  }
+  function clearError() {
+    errorNote.style.display = 'none';
+    errorNote.textContent = '';
+  }
+
+  function fmtInt(n) { return Math.round(n).toLocaleString('en-US'); }
+  function fmtPct(n) { return (n * 100).toFixed(1) + '%'; }
+  function fmtTime(seconds) {
+    const s = Math.round(seconds);
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return m > 0 ? (m + 'm ' + r + 's') : (r + 's');
+  }
+
+  function parseCSV(text) {
+    const result = Papa.parse(text, { header: true, dynamicTyping: true, skipEmptyLines: true });
+    if (result.errors && result.errors.length) {
+      const bad = result.errors.find(e => e.type !== 'FieldMismatch');
+      if (bad) throw new Error('Could not parse that CSV: ' + bad.message);
+    }
+    const rows = result.data.filter(r => r.page_name !== undefined && r.page_name !== null && r.page_name !== '');
+    if (!rows.length) throw new Error('No data rows found in that file.');
+    const cols = Object.keys(rows[0]);
+    const missing = REQUIRED_COLUMNS.filter(c => !cols.includes(c));
+    if (missing.length) {
+      throw new Error('Missing expected column' + (missing.length > 1 ? 's' : '') + ': ' + missing.join(', '));
+    }
+    rows.forEach((r, i) => {
+      ['visits','unique_visitors','bounce_rate','avg_time_on_page_seconds','conversion_events'].forEach(c => {
+        if (typeof r[c] !== 'number' || isNaN(r[c])) {
+          throw new Error('Row ' + (i + 2) + ' has a non-numeric value in "' + c + '".');
+        }
+      });
+    });
+    return rows;
+  }
+
+  function aggregate(rows) {
+    const totalVisits = rows.reduce((s, r) => s + r.visits, 0);
+    const totalConversions = rows.reduce((s, r) => s + r.conversion_events, 0);
+    const timeWeighted = rows.reduce((s, r) => s + r.avg_time_on_page_seconds * r.visits, 0);
+    const dates = rows.map(r => r.date).filter(Boolean).sort();
+
+    const byPage = {};
+    rows.forEach(r => {
+      const k = r.page_name;
+      if (!byPage[k]) byPage[k] = { page_name: k, visits: 0, unique_visitors: 0, bounce_weighted: 0, time_weighted: 0, conversions: 0 };
+      const p = byPage[k];
+      p.visits += r.visits;
+      p.unique_visitors += r.unique_visitors;
+      p.bounce_weighted += r.bounce_rate * r.visits;
+      p.time_weighted += r.avg_time_on_page_seconds * r.visits;
+      p.conversions += r.conversion_events;
+    });
+    const pageRows = Object.values(byPage).map(p => ({
+      page_name: p.page_name,
+      visits: p.visits,
+      unique_visitors: p.unique_visitors,
+      bounce_rate: p.visits ? p.bounce_weighted / p.visits : 0,
+      avg_time: p.visits ? p.time_weighted / p.visits : 0,
+      conv_rate: p.visits ? p.conversions / p.visits : 0,
+    }));
+
+    const bySource = {};
+    rows.forEach(r => {
+      const k = r.traffic_source;
+      if (!bySource[k]) bySource[k] = { traffic_source: k, visits: 0, bounce_weighted: 0, conversions: 0 };
+      const s = bySource[k];
+      s.visits += r.visits;
+      s.bounce_weighted += r.bounce_rate * r.visits;
+      s.conversions += r.conversion_events;
+    });
+    const sourceRows = Object.values(bySource).map(s => ({
+      traffic_source: s.traffic_source,
+      visits: s.visits,
+      share: totalVisits ? s.visits / totalVisits : 0,
+      bounce_rate: s.visits ? s.bounce_weighted / s.visits : 0,
+      conv_rate: s.visits ? s.conversions / s.visits : 0,
+    }));
+
+    const topPage = pageRows.slice().sort((a, b) => b.visits - a.visits)[0];
+    const bounciestPage = pageRows.slice().sort((a, b) => b.bounce_rate - a.bounce_rate)[0];
+    const bestSource = sourceRows.slice().sort((a, b) => b.conv_rate - a.conv_rate)[0];
+
+    return {
+      totalVisits, totalConversions,
+      avgTimeOnSite: totalVisits ? timeWeighted / totalVisits : 0,
+      overallConvRate: totalVisits ? totalConversions / totalVisits : 0,
+      dateRange: dates.length ? (dates[0] === dates[dates.length - 1] ? dates[0] : dates[0] + ' → ' + dates[dates.length - 1]) : '—',
+      rowCount: rows.length,
+      pageRows, sourceRows, topPage, bounciestPage, bestSource,
+    };
+  }
+
+  function renderMetrics(agg) {
+    document.getElementById('m-total-visits').textContent = fmtInt(agg.totalVisits);
+    document.getElementById('m-date-range').textContent = agg.dateRange;
+    document.getElementById('m-row-count').textContent = agg.rowCount.toLocaleString('en-US') + ' rows';
+
+    document.getElementById('m-conv-rate').textContent = fmtPct(agg.overallConvRate);
+    document.getElementById('m-conv-sub').textContent = fmtInt(agg.totalConversions) + ' conversion events total';
+
+    document.getElementById('m-avg-time').textContent = fmtTime(agg.avgTimeOnSite);
+
+    document.getElementById('m-top-page').textContent = agg.topPage ? agg.topPage.page_name : '—';
+    document.getElementById('m-top-page-sub').textContent = agg.topPage ? fmtInt(agg.topPage.visits) + ' visits' : '—';
+
+    document.getElementById('m-bounce-page').textContent = agg.bounciestPage ? agg.bounciestPage.page_name : '—';
+    document.getElementById('m-bounce-page-sub').textContent = agg.bounciestPage ? fmtPct(agg.bounciestPage.bounce_rate) + ' bounce rate' : '—';
+
+    document.getElementById('m-best-source').textContent = agg.bestSource ? agg.bestSource.traffic_source.replace(/_/g, ' ') : '—';
+    document.getElementById('m-best-source-sub').textContent = agg.bestSource ? fmtPct(agg.bestSource.conv_rate) + ' conversion rate' : '—';
+  }
+
+  function sortRows(rows, sort) {
+    const dir = sort.dir;
+    return rows.slice().sort((a, b) => {
+      const av = a[sort.key], bv = b[sort.key];
+      if (typeof av === 'string') return dir * av.localeCompare(bv);
+      return dir * (av - bv);
+    });
+  }
+
+  function renderPagesTable() {
+    const rows = sortRows(lastPagesRows, pagesSort);
+    const maxVisits = Math.max(...lastPagesRows.map(r => r.visits), 1);
+    const maxBounce = Math.max(...lastPagesRows.map(r => r.bounce_rate), 0);
+    const tbody = document.getElementById('pages-body');
+    tbody.innerHTML = rows.map(r => {
+      const flags = [];
+      if (r.visits === maxVisits) flags.push('<span class="pill best">top</span>');
+      if (r.bounce_rate === maxBounce) flags.push('<span class="pill flag">highest bounce</span>');
+      return '<tr>' +
+        '<td class="name-cell">' + escapeHtml(r.page_name) + flags.join('') + '</td>' +
+        '<td>' + fmtInt(r.visits) + '</td>' +
+        '<td>' + fmtInt(r.unique_visitors) + '</td>' +
+        '<td>' + fmtPct(r.bounce_rate) + '</td>' +
+        '<td>' + fmtTime(r.avg_time) + '</td>' +
+        '<td>' + fmtPct(r.conv_rate) + '</td>' +
+        '</tr>';
+    }).join('');
+    updateHeaderSort('pages-table', pagesSort);
+  }
+
+  function renderSourcesTable() {
+    const rows = sortRows(lastSourcesRows, sourcesSort);
+    const maxConv = Math.max(...lastSourcesRows.map(r => r.conv_rate), 0);
+    const tbody = document.getElementById('sources-body');
+    tbody.innerHTML = rows.map(r => {
+      const flags = r.conv_rate === maxConv ? '<span class="pill best">best</span>' : '';
+      return '<tr>' +
+        '<td class="name-cell">' + escapeHtml(r.traffic_source.replace(/_/g, ' ')) + flags + '</td>' +
+        '<td>' + fmtInt(r.visits) + '</td>' +
+        '<td>' + fmtPct(r.share) + '</td>' +
+        '<td>' + fmtPct(r.bounce_rate) + '</td>' +
+        '<td>' + fmtPct(r.conv_rate) + '</td>' +
+        '</tr>';
+    }).join('');
+    updateHeaderSort('sources-table', sourcesSort);
+  }
+
+  function updateHeaderSort(tableId, sort) {
+    document.querySelectorAll('#' + tableId + ' thead th').forEach(th => {
+      th.classList.toggle('sorted', th.dataset.key === sort.key);
+      th.innerHTML = th.textContent.replace(' ▲', '').replace(' ▼', '');
+      if (th.dataset.key === sort.key) {
+        th.innerHTML += '<span class="arrow">' + (sort.dir === 1 ? '▲' : '▼') + '</span>';
+      }
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  document.querySelectorAll('#pages-table thead th').forEach(th => {
+    th.addEventListener('click', () => {
+      if (pagesSort.key === th.dataset.key) pagesSort.dir *= -1;
+      else pagesSort = { key: th.dataset.key, dir: th.dataset.type === 'str' ? 1 : -1 };
+      renderPagesTable();
+    });
+  });
+  document.querySelectorAll('#sources-table thead th').forEach(th => {
+    th.addEventListener('click', () => {
+      if (sourcesSort.key === th.dataset.key) sourcesSort.dir *= -1;
+      else sourcesSort = { key: th.dataset.key, dir: th.dataset.type === 'str' ? 1 : -1 };
+      renderSourcesTable();
+    });
+  });
+
+  function handleFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const rows = parseCSV(reader.result);
+        const agg = aggregate(rows);
+        lastPagesRows = agg.pageRows;
+        lastSourcesRows = agg.sourceRows;
+        renderMetrics(agg);
+        renderPagesTable();
+        renderSourcesTable();
+        clearError();
+        dashboard.style.display = 'block';
+        fileNameEl.textContent = file.name;
+        filePill.style.display = 'inline-flex';
+        stamp.textContent = file.name + ' · ' + rows.length + ' rows';
+        try { localStorage.setItem('parc-analytics-csv', reader.result); localStorage.setItem('parc-analytics-filename', file.name); } catch (e) {}
+      } catch (err) {
+        showError(err.message || 'Could not read that file.');
+      }
+    };
+    reader.onerror = () => showError('Could not read that file.');
+    reader.readAsText(file);
+  }
+
+  fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropzone.classList.remove('drag');
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+  clearBtn.addEventListener('click', e => {
+    e.preventDefault();
+    fileInput.value = '';
+    filePill.style.display = 'none';
+    dashboard.style.display = 'none';
+    stamp.textContent = 'no file loaded';
+    try { localStorage.removeItem('parc-analytics-csv'); localStorage.removeItem('parc-analytics-filename'); } catch (err) {}
+  });
+
+  // restore last session's file, if any
+  try {
+    const savedCsv = localStorage.getItem('parc-analytics-csv');
+    const savedName = localStorage.getItem('parc-analytics-filename');
+    if (savedCsv) {
+      const rows = parseCSV(savedCsv);
+      const agg = aggregate(rows);
+      lastPagesRows = agg.pageRows;
+      lastSourcesRows = agg.sourceRows;
+      renderMetrics(agg);
+      renderPagesTable();
+      renderSourcesTable();
+      dashboard.style.display = 'block';
+      if (savedName) {
+        fileNameEl.textContent = savedName;
+        filePill.style.display = 'inline-flex';
+        stamp.textContent = savedName + ' · ' + rows.length + ' rows (restored)';
+      }
+    }
+  } catch (e) { /* ignore restore errors, start fresh */ }
+})();
+</script>
+</body>
+</html>
